@@ -1,39 +1,132 @@
-const pino = require('pino');
+// ==== KILLUA PRO PANEL VERSION ====
+
+const pino = require('pino')
 const {
   default: makeWASocket,
   useMultiFileAuthState,
-  DisconnectReason,
   fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
-  generateForwardMessageContent,
-  generateWAMessageFromContent,
-  getContentType,
-  proto,
-  makeInMemoryStore,
-  downloadContentFromMessage
-} = require('@trashcore/baileys');
-const NodeCache = require('node-cache');
-const chalk = require('chalk');
-const path = require('path');
-const fs = require('fs');
-const express = require('express');
-const readline = require('readline');
+  makeCacheableSignalKeyStore
+} = require('@trashcore/baileys')
 
-require('./settings');
+const express = require('express')
+const fs = require('fs')
+const path = require('path')
 
-const app = express();
-const port = 3000;
+require('./settings')
 
-const pairingCodes = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
-const msgRetryCounterCache = new NodeCache();
+const app = express()
+const PORT = process.env.PORT || 3000
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+app.use(express.json())
+app.use('/sessiongen', express.static(path.join(__dirname, 'sessiongen')))
 
-const activeSessions = new Set();
+const ADMIN_PASSWORD = "killua123"
+const liveSessions = new Map()
+const tempSessions = new Map()
 
-async function startBot(sessionId = 'killua~default') {
-  if (activeSessions.has(sessionId)) return;
+function auth(req, res, next){
+  const pass = req.headers['x-password']
+  if(pass !== ADMIN_PASSWORD) return res.status(401).json({error:"Unauthorized"})
+  next()
+}
+
+async function startBot(sessionId){
+  const sessionPath = path.join(__dirname, 'sessionfile', sessionId)
+  const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
+  const { version } = await fetchLatestBaileysVersion()
+
+  const sock = makeWASocket({
+    version,
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: false,
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
+    }
+  })
+
+  liveSessions.set(sessionId, sock)
+
+  sock.ev.on('creds.update', saveCreds)
+
+  sock.ev.on('connection.update', (update)=>{
+    if(update.connection === 'open'){
+      console.log("Connected:", sessionId)
+    }
+  })
+
+  sock.ev.on('messages.upsert', async (msg)=>{
+    let m = msg.messages[0]
+    if(!m.message) return
+    require('./case')(sock, m, msg, null, sessionId)
+  })
+}
+
+app.post('/api/session/request', async (req, res)=>{
+  const { phone } = req.body
+
+  const tempId = 'sess_' + Math.random().toString(36).slice(2)
+  const tempPath = path.join(__dirname, 'sessionfile', tempId)
+
+  const { state, saveCreds } = await useMultiFileAuthState(tempPath)
+  const { version } = await fetchLatestBaileysVersion()
+
+  const sock = makeWASocket({
+    version,
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: false,
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
+    }
+  })
+
+  sock.ev.on('creds.update', saveCreds)
+
+  tempSessions.set(tempId, { status:"pending", sock })
+
+  sock.ev.on('connection.update', async (update)=>{
+    if(update.connection === 'open'){
+      tempSessions.get(tempId).status = "connected"
+      await startBot(tempId)
+    }
+  })
+
+  const code = await sock.requestPairingCode(phone)
+
+  res.json({
+    success:true,
+    sessionId:tempId,
+    code: code.match(/.{1,4}/g).join("-")
+  })
+})
+
+app.get('/api/session/status/:id',(req,res)=>{
+  const s = tempSessions.get(req.params.id)
+  res.json({ status: s ? s.status : "not_found" })
+})
+
+app.get('/api/sessions', auth, (req,res)=>{
+  if(!fs.existsSync('./sessionfile')) return res.json([])
+  const list = fs.readdirSync('./sessionfile')
+  res.json(list.map(s=>({id:s})))
+})
+
+app.get('/api/session/delete/:id', auth, async (req,res)=>{
+  const id = req.params.id
+
+  const sock = liveSessions.get(id)
+  if(sock){
+    try{ await sock.logout() }catch{}
+  }
+
+  fs.rmSync('./sessionfile/'+id, {recursive:true, force:true})
+  res.json({success:true})
+})
+
+app.listen(PORT, ()=>{
+  console.log("PANEL:", "http://localhost:"+PORT+"/sessiongen")
+})
   activeSessions.add(sessionId);
   const sessionPath = path.join(__dirname, 'sessionfile', sessionId);
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
