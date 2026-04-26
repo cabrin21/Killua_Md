@@ -1,71 +1,32 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <title>KILLUA MD WEB</title>
-  <style>
-    body {
-      background: black;
-      color: white;
-      text-align: center;
-      font-family: Arial;
-      margin-top: 100px;
+<script>
+async function pair() {
+  let number = document.getElementById("number").value;
+
+  // nettoyage + vérification
+  number = number.replace(/\D/g, '');
+  if (!number.startsWith("243")) {
+    alert("Numéro invalide (ex: 243XXXXXXXXX)");
+    return;
+  }
+
+  try {
+    let res = await fetch('/api/session/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: number })
+    });
+
+    let data = await res.json();
+
+    if (data.success) {
+      document.getElementById("code").innerText = "CODE : " + data.code;
+    } else {
+      document.getElementById("code").innerText = data.message || "Erreur";
     }
 
-    input {
-      padding: 10px;
-      width: 250px;
-      font-size: 16px;
-    }
-
-    button {
-      padding: 10px 20px;
-      margin-top: 10px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    #code {
-      margin-top: 20px;
-      font-size: 18px;
-      color: lime;
-    }
-  </style>
-</head>
-<body>
-
-  <h1>⚡ KILLUA MD WEB</h1>
-
-  <input id="number" placeholder="243XXXXXXXXX"><br>
-  <button onclick="pair()">CONNECTER</button>
-
-  <div id="code"></div>
-
-  <script>
-    async function pair() {
-      let number = document.getElementById("number").value;
-
-      // ✅ Vérification numéro
-      if (!number.startsWith("243")) {
-        alert("Numéro invalide (ex: 243XXXXXXXXX)");
-        return;
-      }
-
-      try {
-        let res = await fetch('/api/session/request', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ phone: number })
-        });
-
-        let data = await res.json();
-
-        if (data.success) {
-          document.getElementById("code").innerText = "CODE : " + data.code;
-        } else {
-          document.getElementById("code").innerText = data.message || "Erreur";
-        }
-
-      }
+  } catch (err) {
+    document.getElementById("code").innerText = "Erreur serveur";
+    console.error(err);
+  }
+}
+</script>
