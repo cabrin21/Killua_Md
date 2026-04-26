@@ -1,13 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>KILLUA MD WEB</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      background: #000;
+      color: white;
+      text-align: center;
+      font-family: Arial;
+      margin-top: 100px;
+    }
+
+    input {
+      padding: 12px;
+      width: 250px;
+      border-radius: 5px;
+      border: none;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 12px 20px;
+      margin-top: 15px;
+      border: none;
+      background: white;
+      color: black;
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 5px;
+    }
+
+    #code {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #00ffcc;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>⚡ KILLUA MD WEB</h1>
+
+<input id="number" placeholder="243XXXXXXXXX"><br>
+<button onclick="pair()">CONNECTER</button>
+
+<p id="code"></p>
+
 <script>
 async function pair() {
   let number = document.getElementById("number").value;
 
-  // nettoyage + vérification
+  // nettoyage
   number = number.replace(/\D/g, '');
+
+  // vérification RDC
   if (!number.startsWith("243")) {
     alert("Numéro invalide (ex: 243XXXXXXXXX)");
     return;
   }
+
+  document.getElementById("code").innerText = "⏳ Génération du code...";
 
   try {
     let res = await fetch('/api/session/request', {
@@ -18,15 +75,20 @@ async function pair() {
 
     let data = await res.json();
 
+    console.log(data); // DEBUG
+
     if (data.success) {
-      document.getElementById("code").innerText = "CODE : " + data.code;
+      document.getElementById("code").innerText = "✅ CODE : " + data.code;
     } else {
-      document.getElementById("code").innerText = data.message || "Erreur";
+      document.getElementById("code").innerText = "❌ " + (data.message || "Erreur");
     }
 
   } catch (err) {
-    document.getElementById("code").innerText = "Erreur serveur";
+    document.getElementById("code").innerText = "❌ Erreur serveur";
     console.error(err);
   }
 }
 </script>
+
+</body>
+</html>
