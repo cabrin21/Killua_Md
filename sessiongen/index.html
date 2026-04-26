@@ -5,20 +5,28 @@
 </head>
 <body style="background:#0f0f0f;color:white;text-align:center;font-family:sans-serif">
   <h1>⚡ KILLUA MD WEB</h1>
+
   <input type="text" id="number" placeholder="243XXXXXXXXX" style="padding:10px"/>
   <br><br>
+
   <button onclick="pair()" style="padding:10px 20px">CONNECTER</button>
+
   <h2 id="code"></h2>
 
   <script>
     async function pair() {
       let number = document.getElementById("number").value;
-      let res = await fetch(`/pairing?number=${number}`);
+      let res = await fetch('/api/session/request', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ phone: number })
+      });
       let data = await res.json();
-      if (data.code) {
+
+      if (data.success) {
         document.getElementById("code").innerText = "CODE : " + data.code;
       } else {
-        document.getElementById("code").innerText = data.error;
+        document.getElementById("code").innerText = data.message;
       }
     }
   </script>
