@@ -1,0 +1,33 @@
+{
+  "name": "Killua MD",
+  "description": "WhatsApp Bot with rich features",
+  "repository": "https://github.com/cabrin21/Mizuki_Md.git",
+  "logo": "https://h.uguu.se/HNALZeLN.jpg",
+  "keywords": ["whatsapp", "bot", "baileys"],
+  "env": {
+    "SESSION_ID": {
+      "description": "Your Baileys Session ID",
+      "required": false
+    },
+    "OWNER": {
+      "description": "Owner number (comma separated)",
+      "required": true,
+      "value": "243906905464"
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "addons": [],
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    },
+    {
+      "url": "https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest"
+    }
+  ]
+}
